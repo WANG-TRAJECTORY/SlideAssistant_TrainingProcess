@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slide Tutor Frontend</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        #subject-select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        #user-query {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        #upload-area {
+            border: 2px dashed #ccc;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+        #upload-area.dragover {
+            border-color: #007bff;
+            background: #e9f4ff;
+        }
+        .progress-container {
+            margin-bottom: 20px;
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            background: #ddd;
+            height: 20px;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #007bff;
+            width: 0;
+            transition: width 0.1s linear;
+        }
+        #logs {
+            background: #f8f8f8;
+            padding: 10px;
+            border: 1px solid #ddd;
+            height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        #answer {
+            margin-top: 20px;
+            padding: 10px;
+            background: #dff0d8;
+            border: 1px solid #d6e9c6;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Slide Tutor</h1>
+
+        <label for="subject-select">选择科目:</label>
+        <select id="subject-select">
+            <option value="ai-weiqinglan">人工智能-卫青蓝老师</option>
+        </select>
+
+        <label for="user-query">请输入问题:</label>
+        <input type="text" id="user-query" placeholder="请输入问题">
+
+        <div id="upload-area">
+            拖动上传 PDF 文件
+        </div>
+
+        <div id="read-pdf-progress" class="progress-container">
+            <p>读取 PDF...</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="read-pdf-fill"></div>
+            </div>
+        </div>
+
+        <div id="generate-questions-progress" class="progress-container">
+            <p>生成 500 个问题...</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="generate-questions-fill"></div>
+            </div>
+        </div>
+
+        <div id="r1-api-progress" class="progress-container">
+            <p>R1 API Get...</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="r1-api-fill"></div>
+            </div>
+        </div>
+
+        <div id="backend-progress" class="progress-container">
+            <p>运行后端过程...</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="backend-fill"></div>
+            </div>
+        </div>
+
+        <div id="logs"></div>
+        <div id="answer"></div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('upload-area');
+        const logs = document.getElementById('logs');
+        const answerDiv = document.getElementById('answer');
+        const userQueryInput = document.getElementById('user-query');
+
+        // 拖拽上传处理
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            const userQuery = userQueryInput.value.trim();
+            if (userQuery === '') {
+                alert('输入问题');
+                return;
+            }
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                startProcess(userQuery);
+            } else {
+                alert('上传 PDF (课程slide)文件');
+            }
+        });
+
+        function logMessage(message) {
+            const logEntry = document.createElement('p');
+            logEntry.textContent = message;
+            logs.appendChild(logEntry);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function animateProgress(progressId, duration, callback) {
+            const fill = document.getElementById(progressId + '-fill');
+            const container = document.getElementById(progressId + '-progress');
+            container.style.display = 'block';
+            let width = 0;
+            const interval = setInterval(() => {
+                if (width >= 100) {
+                    clearInterval(interval);
+                    container.style.display = 'none';
+                    callback();
+                } else {
+                    width += 100 / (duration * 10); // 每0.1秒更新
+                    fill.style.width = width + '%';
+                }
+            }, 100);
+        }
+
+        function startProcess(userQuery) {
+            uploadArea.style.display = 'none';
+            userQueryInput.disabled = true;
+            animateProgress('read-pdf', 20, () => {
+                animateProgress('generate-questions', 20, () => {
+                    animateProgress('r1-api', 20, () => {
+                        // 运行后端过程
+                        runBackendSimulation(userQuery);
+                    });
+                });
+            });
+        }
+
+        function runBackendSimulation(userQuery) {
+            const backendContainer = document.getElementById('backend-progress');
+            backendContainer.style.display = 'block';
+            let progress = 0;
+            const backendLogs = [
+                "C:\\Users\\wtupw\\anaconda3\\envs\\SlideTutor-1.5B\\python.exe C:\\Users\\wtupw\\OneDrive\\Desktop\\coursework\\script_6backend.py",
+                "2025-08-05 11:09:54,863 - INFO - Use pytorch device_name: cpu",
+                "2025-08-05 11:09:54,863 - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2",
+                "Batches: 100%|██████████| 75/75 [00:29<00:00,  2.50it/s]",
+                "Batches: 100%|██████████| 1/1 [00:00<00:00, 99.88it/s]",
+                "Most relevant shortened chunks:",
+                "于 下 游 的 自然 语言 处 理 任 务 ， 这 将 在 后 面 的 15 节 中\\n讨论 。 为 了 直观 地 演示 大 型 语料库 中 预 训练 词 向 量 的 语义 ， 让 我 们 将 预 训 练 词 向 量 应 用 到 词 的 相似 性 和 类 比\\n\\n678\\n\\n14. 自然 语言 处 理 : 预 训练\\n\\n=== Page 697 ===\\n14.7.1 加 载 预 训 练 词 向 量\\n\\n以 \\ni/t/2894",
+                "564 13. 计算 机 视觉\\n\\n=== Page 583 ===\\n13.3.1 边界 框\\n\\n在 目标 检测 中 ， 我 们 通常 使 用 边界 框 (bounding box) KHAN RANE. WRENN, REE\\n上 角 的 以 及 右 下 角 的 zx 和 ?坐标 决定 。 另 一 种 常用 的 边界 框 表示 方法 是 边界 框 中 心 的 (z, 妇 轴 坐 标",
+                "应 该 是 文章 中 的 文本 片段 “mask makers”(” 口罩 制造 商 ”)。 因 此 ，SQuAD v1.11)\\n目标 是 在 给 定 问题 和 段落 的 情况 下 预测 段落 中 文本 片段 的 开始 和 结束\\n标签\\nLy\\n对 于 相同 的 标签 值 ，\\n将 共享 稠密 层 的 参数 | mem |\\n不 LY ry\\n表示 -os。 RT 表示 。 。 表示 -sep> RM 表示",
+                "2025-08-05 11:10:29,687 - INFO - 使用设备: gpu",
+                "2025-08-05 11:10:29,687 - INFO - 正在加载分词器...",
+                "2025-08-05 11:10:29,964 - INFO - 分词器加载完成",
+                "2025-08-05 11:10:29,964 - INFO - 正在加载模型...",
+                "2025-08-05 11:10:31,307 - INFO - 模型加载完成！",
+                `\\nGenerated Answer: 问题: ${userQuery}?\\nassistant\\n问题: ${userQuery}?\\nAssistant: 好的，我明白了。下面是一个关于自然语言处理（NLP）中预训练词向量的示例： \\n\\n问题：什么是${userQuery}？（使用示例回答问题。）\\n\\n答案：${userQuery}是预训练词向量中用于表示文本片断开始和结束位置的参数。在目标检测中，我们使用它来预测段落中的文本片断开始和结束位置。`,
+                "\\nTime taken to compute embeddings: 30.0067 seconds",
+                "Total execution time: 46.5401 seconds",
+                "\\n进程已结束，退出代码为 0"
+            ];
+
+            const interval = setInterval(() => {
+                if (progress < backendLogs.length) {
+                    logMessage(backendLogs[progress]);
+                    progress++;
+                    const fill = document.getElementById('backend-fill');
+                    fill.style.width = (progress / backendLogs.length * 100) + '%';
+                } else {
+                    clearInterval(interval);
+                    backendContainer.style.display = 'none';
+                    answerDiv.innerHTML = '<strong>Generated Answer:</strong><br>' + backendLogs[14]; // Adjust index for answer
+                }
+            }, 200); // Simulate delay between logs
+        }
+    </script>
+</body>
+</html>
